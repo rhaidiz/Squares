@@ -1,0 +1,221 @@
+package android.project.SquareGame;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+/**
+ * Classe che gestisce le interazioni con il DataBase
+ * 
+ * @author Federico De Meo
+ * 
+ */
+public class DataBase {
+
+    /** Il nome del DataBase */
+    private static final String DATABASE_NAME = "gameDB";
+    /** La versione del DataBase, usata per le operazioni di upgrade */
+    private static final int DATABASE_VERSION = 1;
+    /** Il nome della tabella dei record */
+    private static final String SCORE_TABLE = "t_record";
+    /** Identificatori per le colonne della tabella t_record */
+    private static final String KEY_ROW = "_id";
+    private static final String NAME_ROW = "name";
+    private static final String SCORE_ROW = "score";
+    /** Il nome della tabella delle opzioni */
+    private static final String OPTION_TABLE = "t_option";
+    /** Identificatori per le colonne della tabella t_option */
+    private static final String KEY_ROW_O = "_id";
+    private static final String DIM_ROW = "dim";
+    private static final String NEXT_ROW = "next";
+    
+    /** La query di creazione della tabella */
+    private static final String QUERY_CREATE_SCORE_TABLE = "create table "
+            + SCORE_TABLE + "(" +
+            KEY_ROW + " integer primary key autoincrement," +
+            NAME_ROW + " text not null," +
+            SCORE_ROW + " integer not null"
+            + ")";
+    private static final String QUERY_CREATE_OPTIONS = "create table "
+        + OPTION_TABLE + "(" +
+        KEY_ROW_O + " integer primary key autoincrement," +
+        DIM_ROW + " integer not null,"+
+        NEXT_ROW + " integer not null"
+        +")";
+    
+    /** Android context */
+    private final Context context;
+
+    /** DataBase helper */
+    private DatabaseHelper DBHelper;
+
+    /** DataBase reference */
+    private SQLiteDatabase db;
+
+    /** Riferimento al DataBase */
+    private static DataBase db_ref;
+    
+    /** Classe di aiuto che gestisce creazione e gestione della versione del DataBase
+     * 
+     * @author Federico De Meo 
+     */
+    private static class DatabaseHelper extends SQLiteOpenHelper {
+        /**
+         * @see android.database.sqlite.SQLiteOpenHelper#SQLiteOpenHelper(Context,
+         *      String, android.database.sqlite.SQLiteDatabase.CursorFactory,
+         *      int)
+         */
+        DatabaseHelper(Context context) {
+            super(context, DATABASE_NAME, null, DATABASE_VERSION);
+        }
+
+        /**
+         * @see android.database.sqlite.SQLiteOpenHelper#onCreate(SQLiteDatabase)
+         */
+        public void onCreate(SQLiteDatabase db) {
+            db.execSQL(QUERY_CREATE_SCORE_TABLE);
+            db.execSQL(QUERY_CREATE_OPTIONS);
+
+        }
+
+        /**
+         * @see android.database.sqlite.SQLiteOpenHelper#onUpgrade(SQLiteDatabase,
+         *      int, int)
+         */
+        public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+
+        }
+
+    }
+
+    /**
+     * Costruttore del DataBase
+     * 
+     * @param cnt, context dell'applicazione
+     */
+    private DataBase(Context cnt) {
+        context = cnt;
+        DBHelper = new DatabaseHelper(context);
+    }
+    
+    /**
+     * Creazione di un oggetto singleton
+     * 
+     * @param contesto dell'applicazione
+     * @return riferimento a un oggetto DataBase
+     */
+    public static DataBase getInstances(Context c){
+        if(db_ref == null)
+            db_ref = new DataBase(c);
+        return db_ref;
+    }
+    
+    /**
+     * Apre il DB in scrittura e lettura; questo metodo deve essere invocato
+     * prima di utilizzare
+     * il DB.
+     */
+    public DataBase open() throws SQLException {
+        db = DBHelper.getWritableDatabase();
+        return this;
+    }
+
+    /**
+     * Metodo per inserire un record
+     * 
+     * @param nome del giocatore
+     * @param record del giocatore
+     * @return identificatore del record appena inserito
+     */
+    public long insertRecord(String nome, int record) {
+        ContentValues initialValues = new ContentValues();
+        initialValues.put(NAME_ROW, nome);
+        initialValues.put(SCORE_ROW, record);
+        long id = db.insert(SCORE_TABLE, null, initialValues);
+        return id;
+    }
+
+    /**
+     * Restituisce tutti i record presenti nella tabella
+     * 
+     * @return cursor che identifica i record della tabella
+     */
+    public Cursor getAllRecord() {
+        return db.query(false, SCORE_TABLE, new String[] {
+                NAME_ROW,
+                SCORE_ROW },
+                null,
+                null,
+                null,
+                null,
+                SCORE_ROW + " DESC",
+                null);
+    }
+
+    /**
+     * Chiusura del DataBase
+     */
+    public void close() {
+        DBHelper.close();
+    }
+
+    /**
+     * Eliminazione della tabella dei record
+     */
+    public void dropTable() {
+        db.execSQL("DROP TABLE " + SCORE_TABLE);
+        db.execSQL("DROP TABLE " + OPTION_TABLE);
+    }
+
+    /**
+     * Creazione della tabella dei record
+     */
+    public void createTable() {
+        db.execSQL(QUERY_CREATE_SCORE_TABLE);
+       /* db.execSQL(QUERY_CREATE_OPTIONS);
+        ContentValues initialValues = new ContentValues();
+        initialValues.put(DIM_ROW, 10);
+        initialValues.put(NEXT_ROW, 0);
+        db.insert(OPTION_TABLE, null, initialValues);*/
+    }
+    
+    /**
+     * Svuoto la tabella
+     */
+    public void svutaRecord(){
+        db.execSQL("DELETE FROM "+SCORE_TABLE);
+    }
+    /**
+     * Aggiorna le optzioni del gioco
+     * 
+     * @param dimensione del quadrato di gioco
+     * @param opzione showNext abilitata o no
+     */
+    public void updateOptions(int dim,int next){
+        ContentValues initialValues = new ContentValues();
+        initialValues.put(DIM_ROW, dim);
+        initialValues.put(NEXT_ROW, next);
+        db.update(OPTION_TABLE, initialValues, null,null);
+    }
+    
+    
+    /**
+     * Ritorno le opzioni presenti nel DataBase
+     * 
+     * @return cursore delle opzioni
+     */
+    public Cursor getOptions(){
+        return db.query(false, OPTION_TABLE, new String[] {
+                DIM_ROW,
+                NEXT_ROW },
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+}
